@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Single Page Games</title>
+	<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+	<style>
+		:root {
+			--bg-color: #f4f4f9;
+			--card-bg: #fff;
+			--text-color: #333;
+			--subtext-color: #666;
+			--primary-color: #007bff;
+			--hover-color: #0056b3;
+		}
+
+		body {
+			font-family: 'Roboto', sans-serif;
+			background-color: var(--bg-color);
+			display: flex;
+			flex-direction: column;
+			align-items: center;
+			justify-content: center;
+			min-height: 100vh;
+			margin: 0;
+			padding: 1rem;
+			box-sizing: border-box;
+		}
+
+		h1 {
+			margin-bottom: 0.5rem;
+			color: var(--text-color);
+			text-align: center;
+		}
+
+		p.subtitle {
+			color: var(--subtext-color);
+			margin-bottom: 3rem;
+			text-align: center;
+			max-width: 600px;
+		}
+
+		.game-grid {
+			display: grid;
+			grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+			gap: 20px;
+			width: 100%;
+			max-width: 800px;
+		}
+
+		.game-card {
+			background: var(--card-bg);
+			padding: 2rem;
+			border-radius: 10px;
+			box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+			text-align: center;
+			transition: transform 0.2s, box-shadow 0.2s;
+			text-decoration: none;
+			color: inherit;
+			display: flex;
+			flex-direction: column;
+			align-items: center;
+		}
+
+		.game-card:hover {
+			transform: translateY(-5px);
+			box-shadow: 0 8px 12px rgba(0, 0, 0, 0.15);
+		}
+
+		.game-icon {
+			font-size: 3rem;
+			margin-bottom: 1rem;
+		}
+
+		.game-title {
+			font-size: 1.5rem;
+			font-weight: bold;
+			margin-bottom: 0.5rem;
+			color: var(--text-color);
+		}
+
+		.game-desc {
+			color: var(--subtext-color);
+			font-size: 0.9rem;
+		}
+	</style>
+</head>
+
+<body>
+	<h1>Single Page Games</h1>
+	<p class="subtitle">A collection of single file games. Built with AI assistance.</p>
+
+	<div class="game-grid">
+		<a href="sudoku.html" class="game-card">
+			<div class="game-icon">🧩</div>
+			<div class="game-title">Sudoku</div>
+			<div class="game-desc">Fill the grid so that every row, column, and block contains 1-9.</div>
+		</a>
+
+		<a href="minesweeper.html" class="game-card">
+			<div class="game-icon">💣</div>
+			<div class="game-title">Minesweeper</div>
+			<div class="game-desc">Flag mines and reveal safe zones to clear the board.</div>
+		</a>
+	</div>
+</body>
+
+</html>
