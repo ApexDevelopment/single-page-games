@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Single Page Sudoku</title>
+	<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+	<style>
+		:root {
+			--bg-color: #f4f4f9;
+			--grid-border: #333;
+			--cell-border: #ccc;
+			--highlight: #e8f0fe;
+			--error: #ffcccc;
+			--fixed-text: #000;
+			--user-text: #2c7be5;
+		}
+
+		body {
+			font-family: 'Roboto', sans-serif;
+			background-color: var(--bg-color);
+			display: flex;
+			flex-direction: column;
+			align-items: center;
+			justify-content: center;
+			min-height: 100vh;
+			margin: 0;
+			padding: 1rem;
+			box-sizing: border-box;
+		}
+
+		h1 {
+			margin-bottom: 0.5rem;
+			color: #333;
+		}
+
+		p {
+			color: #666;
+			margin-bottom: 2rem;
+			text-align: center;
+			max-width: 600px;
+		}
+
+		.controls {
+			margin-bottom: 2rem;
+			display: flex;
+			gap: 10px;
+			flex-wrap: wrap;
+			justify-content: center;
+		}
+
+		button {
+			padding: 0.5rem;
+			border: none;
+			border-radius: 5px;
+			cursor: pointer;
+			font-weight: bold;
+			transition: background 0.2s;
+			font-size: 0.9rem;
+		}
+
+		.btn-primary {
+			background-color: #007bff;
+			color: white;
+		}
+
+		.btn-primary:hover {
+			background-color: #0056b3;
+		}
+
+		.btn-secondary {
+			background-color: #6c757d;
+			color: white;
+		}
+
+		.btn-secondary:hover {
+			background-color: #545b62;
+		}
+
+		.btn-success {
+			background-color: #28a745;
+			color: white;
+		}
+
+		.btn-success:hover {
+			background-color: #218838;
+		}
+
+		.btn-danger {
+			background-color: #dc3545;
+			color: white;
+		}
+
+		.btn-danger:hover {
+			background-color: #c82333;
+		}
+
+		#sudoku-board {
+			display: grid;
+			grid-template-columns: repeat(9, 40px);
+			grid-template-rows: repeat(9, 40px);
+			border: 2px solid var(--grid-border);
+			background: white;
+			box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+		}
+
+		@media (max-width: 500px) {
+			#sudoku-board {
+				grid-template-columns: repeat(9, 9vw);
+				grid-template-rows: repeat(9, 9vw);
+			}
+
+			input {
+				font-size: 1.2rem;
+			}
+		}
+
+		input {
+			width: 100%;
+			height: 100%;
+			text-align: center;
+			font-size: 1.5rem;
+			border: none;
+			border-right: 1px solid var(--cell-border);
+			border-bottom: 1px solid var(--cell-border);
+			box-sizing: border-box;
+			outline: none;
+			color: var(--user-text);
+			padding: 0;
+			margin: 0;
+		}
+
+		input:focus {
+			background-color: var(--highlight);
+		}
+
+		input:nth-child(3n) {
+			border-right: 3px solid var(--grid-border);
+		}
+
+		input:nth-child(9n) {
+			border-right: none;
+		}
+
+		input:nth-child(n+19):nth-child(-n+27),
+		input:nth-child(n+46):nth-child(-n+54) {
+			border-bottom: 3px solid var(--grid-border);
+		}
+
+		input:nth-child(n+73) {
+			border-bottom: none;
+		}
+
+		.fixed {
+			background-color: #eee;
+			color: var(--fixed-text);
+			font-weight: bold;
+			pointer-events: none;
+		}
+
+		.error {
+			background-color: var(--error) !important;
+		}
+
+		.mode-badge {
+			background: #333;
+			color: #fff;
+			padding: 4px 8px;
+			border-radius: 4px;
+			font-size: 0.8rem;
+			vertical-align: middle;
+			margin-left: 10px;
+		}
+
+		#status {
+			margin-top: 15px;
+			font-weight: bold;
+			height: 20px;
+		}
+	</style>
+</head>
+
+<body>
+	<h1>Sudoku <span id="mode-display" class="mode-badge">PLAY MODE</span></h1>
+
+	<div class="controls">
+		<button onclick="clearBoard()" class="btn-danger">Clear</button>
+		<button onclick="toggleMode()" class="btn-secondary" id="mode-btn">Switch to Edit Mode</button>
+		<button onclick="validateBoard()" class="btn-success">Check Board</button>
+		<button onclick="generateShareLink()" class="btn-primary">Share Link</button>
+	</div>
+
+	<div id="sudoku-board">
+	</div>
+
+	<div id="status"></div>
+
+	<script>
+		const board = document.getElementById('sudoku-board');
+		const statusDiv = document.getElementById('status');
+		const modeBtn = document.getElementById('mode-btn');
+		const modeDisplay = document.getElementById('mode-display');
+
+		let isEditMode = false;
+		let inputs = [];
+
+		window.onload = () => {
+			createGrid();
+
+			const urlParams = new URLSearchParams(window.location.search);
+			const boardData = urlParams.get('board');
+
+			if (boardData && boardData.length === 81) {
+				loadBoard(boardData);
+				setPlayMode();
+			} else {
+				setEditMode();
+			}
+		};
+
+		function createGrid() {
+			board.innerHTML = '';
+			inputs = [];
+			for (let i = 0; i < 81; i++) {
+				let input = document.createElement('input');
+				input.type = 'text';
+				input.maxLength = 1;
+				input.dataset.index = i;
+
+				input.addEventListener('input', (e) => {
+					const val = e.target.value;
+					// only numbers 1-9
+					if (!/^[1-9]$/.test(val)) {
+						e.target.value = '';
+					}
+					// clear error styling on change
+					e.target.classList.remove('error');
+					statusDiv.innerText = '';
+				});
+
+				board.appendChild(input);
+				inputs.push(input);
+			}
+		}
+
+		function toggleMode() {
+			if (isEditMode) {
+				setPlayMode();
+			} else {
+				setEditMode();
+			}
+		}
+
+		function setEditMode() {
+			isEditMode = true;
+			modeDisplay.innerText = "EDIT MODE";
+			modeBtn.innerText = "Switch to Play Mode";
+			statusDiv.innerText = "Enter the puzzle clues.";
+
+			inputs.forEach(input => {
+				input.classList.remove('fixed', 'error');
+				input.readOnly = false;
+			});
+		}
+
+		function setPlayMode() {
+			isEditMode = false;
+			modeDisplay.innerText = "PLAY MODE";
+			modeBtn.innerText = "Switch to Edit Mode";
+			statusDiv.innerText = "Good luck!";
+
+			inputs.forEach(input => {
+				if (input.value !== '') {
+					input.classList.add('fixed');
+					input.readOnly = true;
+				} else {
+					input.classList.remove('fixed');
+					input.readOnly = false;
+				}
+			});
+		}
+
+		function clearBoard() {
+			if (isEditMode) {
+				inputs.forEach(input => {
+					input.value = '';
+					input.classList.remove('fixed', 'error');
+				});
+				window.history.pushState({}, document.title, window.location.pathname);
+			}
+			else {
+				inputs.forEach(input => {
+					if (!input.classList.contains('fixed')) {
+						input.value = '';
+						input.classList.remove('error');
+					}
+				});
+			}
+		}
+
+		function loadBoard(boardString) {
+			for (let i = 0; i < 81; i++) {
+				const char = boardString[i];
+				inputs[i].value = char === '0' ? '' : char;
+			}
+		}
+
+		function getBoardString() {
+			return inputs
+				.map(input => input.classList.contains('fixed') ? (input.value || '0') : '0').join('');
+		}
+
+		function generateShareLink() {
+			const boardStr = getBoardString();
+			const baseUrl = window.location.href.split('?')[0];
+			const newUrl = `${baseUrl}?board=${boardStr}`;
+
+			// Push to history
+			try {
+				window.history.pushState({ path: newUrl }, '', newUrl);
+			} catch (e) {
+				console.warn("Could not update history:", e);
+			}
+
+			// Copy to clipboard
+			if (navigator.clipboard) {
+				navigator.clipboard.writeText(newUrl).then(() => {
+					statusDiv.innerText = "Link copied to clipboard!";
+					statusDiv.style.color = "green";
+				}).catch(() => {
+					statusDiv.innerText = "URL updated. Copy from address bar.";
+					statusDiv.style.color = "#333";
+				});
+			} else {
+				statusDiv.innerText = "URL updated. Copy from address bar.";
+				statusDiv.style.color = "#333";
+			}
+		}
+
+		function validateBoard() {
+			// Reset errors
+			inputs.forEach(i => i.classList.remove('error'));
+			statusDiv.style.color = "black";
+
+			let isValid = true;
+			let isFilled = true;
+
+			// Helper to check duplicates in an array of indices
+			const checkGroup = (indices) => {
+				let seen = {};
+				indices.forEach(index => {
+					const val = inputs[index].value;
+					if (val) {
+						if (seen[val]) {
+							isValid = false;
+							inputs[index].classList.add('error');
+							inputs[seen[val]].classList.add('error');
+						}
+						seen[val] = index;
+					} else {
+						isFilled = false;
+					}
+				});
+			};
+
+			// Check Rows
+			for (let r = 0; r < 9; r++) {
+				let indices = [];
+				for (let c = 0; c < 9; c++) indices.push(r * 9 + c);
+				checkGroup(indices);
+			}
+
+			// Check Columns
+			for (let c = 0; c < 9; c++) {
+				let indices = [];
+				for (let r = 0; r < 9; r++) indices.push(r * 9 + c);
+				checkGroup(indices);
+			}
+
+			// Check 3x3 Boxes
+			for (let boxRow = 0; boxRow < 3; boxRow++) {
+				for (let boxCol = 0; boxCol < 3; boxCol++) {
+					let indices = [];
+					for (let r = 0; r < 3; r++) {
+						for (let c = 0; c < 3; c++) {
+							indices.push((boxRow * 3 + r) * 9 + (boxCol * 3 + c));
+						}
+					}
+					checkGroup(indices);
+				}
+			}
+
+			if (!isValid) {
+				statusDiv.innerText = "Conflicts found!";
+				statusDiv.style.color = "red";
+			} else if (!isFilled) {
+				statusDiv.innerText = "Looks good, keep going!";
+				statusDiv.style.color = "#007bff";
+			} else {
+				statusDiv.innerText = "Congratulations! Board is valid and complete.";
+				statusDiv.style.color = "green";
+			}
+		}
+	</script>
+</body>
+
+</html>
