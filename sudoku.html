@@ -43,11 +43,12 @@
 		}
 
 		.controls {
-			margin-bottom: 2rem;
+			margin-bottom: 1rem;
 			display: flex;
 			gap: 10px;
 			flex-wrap: wrap;
 			justify-content: center;
+			align-items: center;
 		}
 
 		button {
@@ -178,6 +179,28 @@
 			font-weight: bold;
 			height: 20px;
 		}
+
+		.note {
+			color: #777;
+			font-size: 0.6rem;
+			letter-spacing: 1px;
+			line-height: 40px;
+			word-wrap: break-word;
+		}
+
+		@media (max-width: 500px) {
+			.note {
+				font-size: 0.5rem;
+				line-height: normal;
+				display: flex;
+				align-items: center;
+				justify-content: center;
+			}
+		}
+
+		.active-mode {
+			outline: 2px solid #007bff;
+		}
 	</style>
 </head>
 
@@ -192,6 +215,8 @@
 		<button onclick="generateShareLink()" class="btn-primary">Share Link</button>
 	</div>
 
+	<p>Press 'n' to toggle note mode • Arrow keys to navigate</p>
+
 	<div id="sudoku-board">
 	</div>
 
@@ -204,6 +229,7 @@
 		const modeDisplay = document.getElementById('mode-display');
 
 		let isEditMode = false;
+		let isNoteMode = false;
 		let inputs = [];
 
 		window.onload = () => {
@@ -218,6 +244,40 @@
 			} else {
 				setEditMode();
 			}
+
+			// Global key listener for 'n'
+			document.addEventListener('keydown', (e) => {
+				const currentInput = document.activeElement;
+				const index = parseInt(currentInput.dataset.index);
+				console.log("Current:", index);
+				if (e.key.toLowerCase() === 'n' && !e.target.matches('input')) {
+					toggleNoteMode();
+				}
+				if (e.key.toLowerCase() == 'arrowleft') {
+					const prevIndex = index - 1;
+					if (prevIndex >= 0) {
+						inputs[prevIndex].focus();
+					}
+				}
+				if (e.key.toLowerCase() == 'arrowright') {
+					const nextIndex = index + 1;
+					if (nextIndex < 81) {
+						inputs[nextIndex].focus();
+					}
+				}
+				if (e.key.toLowerCase() == 'arrowup') {
+					const prevRow = index - 9;
+					if (prevRow >= 0) {
+						inputs[prevRow].focus();
+					}
+				}
+				if (e.key.toLowerCase() == 'arrowdown') {
+					const nextRow = index + 9;
+					if (nextRow < 81) {
+						inputs[nextRow].focus();
+					}
+				}
+			});
 		};
 
 		function createGrid() {
@@ -226,15 +286,94 @@
 			for (let i = 0; i < 81; i++) {
 				let input = document.createElement('input');
 				input.type = 'text';
-				input.maxLength = 1;
 				input.dataset.index = i;
+
+				input.addEventListener('keydown', (e) => {
+					// Allow 'n' to toggle note mode even inside input
+					if (e.key.toLowerCase() === 'n') {
+						e.preventDefault();
+						toggleNoteMode();
+						return;
+					}
+
+					if (['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Tab'].includes(e.key)) {
+						return;
+					}
+
+					// If we are in note mode and user types a number
+					if (isNoteMode && /^[1-9]$/.test(e.key)) {
+						e.preventDefault();
+						const val = e.key;
+						// If currently a normal value, clear it first
+						if (!input.classList.contains('note') && input.value) {
+							input.value = '';
+							input.classList.add('note');
+						}
+
+						// If it was already a note input, or empty
+						input.classList.add('note');
+
+						let currentNotes = input.value.split('');
+						if (currentNotes.includes(val)) {
+							// Toggle off if already present
+							currentNotes = currentNotes.filter(n => n !== val);
+						} else {
+							// Add and sort
+							currentNotes.push(val);
+							currentNotes.sort();
+						}
+						input.value = currentNotes.join('');
+						if (input.value === '') {
+							input.classList.remove('note');
+						}
+						return;
+					}
+
+					if (!isNoteMode && /^[1-9]$/.test(e.key)) {
+						// Standard input helper handles the rest via 'input' event 
+						return; // let default action happen, but cleanup in input listener
+					}
+
+					// If not a number and not special key, prevent
+					if (!/^[1-9]$/.test(e.key)) {
+						e.preventDefault();
+					}
+				});
 
 				input.addEventListener('input', (e) => {
 					const val = e.target.value;
-					// only numbers 1-9
-					if (!/^[1-9]$/.test(val)) {
-						e.target.value = '';
+
+					if (isNoteMode) {
+						// Logic handled in keydown, but if something slips through:
+						// Ensure .note class is present if length > 1
+						if (val.length > 1) input.classList.add('note');
+					} else {
+						// Normal Mode logic
+						// If we just typed a number in normal mode, it should replace everything
+						if (input.classList.contains('note')) {
+							input.classList.remove('note');
+							// Take the last typed character if possible? 
+							// Logic is tricky in 'input' event because value is already mutated.
+							// Simply taking the last char is a good heuristic
+							const lastChar = val.slice(-1);
+							if (/^[1-9]$/.test(lastChar)) {
+								e.target.value = lastChar;
+							} else {
+								e.target.value = '';
+							}
+						} else {
+							// Just normal replacement
+							if (val.length > 1) {
+								const lastChar = val.slice(-1);
+								e.target.value = lastChar;
+							}
+						}
+
+						if (!/^[1-9]$/.test(e.target.value)) {
+							e.target.value = '';
+						}
 					}
+
 					// clear error styling on change
 					e.target.classList.remove('error');
 					statusDiv.innerText = '';
@@ -242,6 +381,15 @@
 
 				board.appendChild(input);
 				inputs.push(input);
+			}
+		}
+
+		function toggleNoteMode() {
+			isNoteMode = !isNoteMode;
+			if (isNoteMode) {
+				statusDiv.innerText = "Note mode on!";
+			} else {
+				statusDiv.innerText = "Note mode off.";
 			}
 		}
 
@@ -286,7 +434,7 @@
 			if (isEditMode) {
 				inputs.forEach(input => {
 					input.value = '';
-					input.classList.remove('fixed', 'error');
+					input.classList.remove('fixed', 'error', 'note');
 				});
 				window.history.pushState({}, document.title, window.location.pathname);
 			}
@@ -294,7 +442,7 @@
 				inputs.forEach(input => {
 					if (!input.classList.contains('fixed')) {
 						input.value = '';
-						input.classList.remove('error');
+						input.classList.remove('error', 'note');
 					}
 				});
 			}
@@ -304,12 +452,13 @@
 			for (let i = 0; i < 81; i++) {
 				const char = boardString[i];
 				inputs[i].value = char === '0' ? '' : char;
+				inputs[i].classList.remove('note');
 			}
 		}
 
 		function getBoardString() {
 			return inputs
-				.map(input => input.classList.contains('fixed') ? (input.value || '0') : '0').join('');
+				.map(input => input.classList.contains('fixed') || (!input.classList.contains('note') && input.value) ? (input.value || '0') : '0').join('');
 		}
 
 		function updateUrl() {
@@ -357,7 +506,8 @@
 				let seen = {};
 				indices.forEach(index => {
 					const val = inputs[index].value;
-					if (val) {
+					const isNote = inputs[index].classList.contains('note');
+					if (val && !isNote) {
 						if (seen[val]) {
 							isValid = false;
 							inputs[index].classList.add('error');
@@ -413,7 +563,7 @@
 			// Clear current inputs
 			inputs.forEach(input => {
 				input.value = '';
-				input.classList.remove('fixed', 'error');
+				input.classList.remove('fixed', 'error', 'note');
 			});
 
 			// Create a flat array for the grid
