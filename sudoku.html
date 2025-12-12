@@ -188,6 +188,7 @@
 		<button onclick="clearBoard()" class="btn-danger">Clear</button>
 		<button onclick="toggleMode()" class="btn-secondary" id="mode-btn">Switch to Edit Mode</button>
 		<button onclick="validateBoard()" class="btn-success">Check Board</button>
+		<button onclick="generateRandomBoard()" class="btn-primary">Random Game</button>
 		<button onclick="generateShareLink()" class="btn-primary">Share Link</button>
 	</div>
 
@@ -311,17 +312,22 @@
 				.map(input => input.classList.contains('fixed') ? (input.value || '0') : '0').join('');
 		}
 
-		function generateShareLink() {
+		function updateUrl() {
 			const boardStr = getBoardString();
 			const baseUrl = window.location.href.split('?')[0];
 			const newUrl = `${baseUrl}?board=${boardStr}`;
 
-			// Push to history
 			try {
 				window.history.pushState({ path: newUrl }, '', newUrl);
 			} catch (e) {
 				console.warn("Could not update history:", e);
 			}
+
+			return newUrl;
+		}
+
+		function generateShareLink() {
+			const newUrl = updateUrl();
 
 			// Copy to clipboard
 			if (navigator.clipboard) {
@@ -401,6 +407,93 @@
 				statusDiv.innerText = "Congratulations! Board is valid and complete.";
 				statusDiv.style.color = "green";
 			}
+		}
+
+		function generateRandomBoard() {
+			// Clear current inputs
+			inputs.forEach(input => {
+				input.value = '';
+				input.classList.remove('fixed', 'error');
+			});
+
+			// Create a flat array for the grid
+			let grid = new Array(81).fill(0);
+			fillBoard(grid);
+
+			// Remove clues to create a puzzle
+			// Keep around 35 clues for a balanced game
+			const cluesCount = 35;
+			let indices = Array.from({ length: 81 }, (_, i) => i);
+
+			// Shuffle indices
+			for (let i = indices.length - 1; i > 0; i--) {
+				const j = Math.floor(Math.random() * (i + 1));
+				[indices[i], indices[j]] = [indices[j], indices[i]];
+			}
+
+			// Set of indices to keep
+			const indicesToKeep = new Set(indices.slice(0, cluesCount));
+
+			// Populate inputs
+			for (let i = 0; i < 81; i++) {
+				if (indicesToKeep.has(i)) {
+					inputs[i].value = grid[i];
+				}
+			}
+
+			setPlayMode();
+			statusDiv.innerText = "New random game generated!";
+			statusDiv.style.color = "#333";
+		}
+
+		function fillBoard(grid) {
+			const findEmpty = (g) => {
+				for (let i = 0; i < 81; i++) {
+					if (g[i] === 0) return i;
+				}
+				return -1;
+			};
+
+			const index = findEmpty(grid);
+			if (index === -1) return true; // Board is full
+
+			const nums = [1, 2, 3, 4, 5, 6, 7, 8, 9];
+			// Shuffle numbers for randomness
+			for (let i = nums.length - 1; i > 0; i--) {
+				const j = Math.floor(Math.random() * (i + 1));
+				[nums[i], nums[j]] = [nums[j], nums[i]];
+			}
+
+			for (const num of nums) {
+				if (isValidMove(grid, index, num)) {
+					grid[index] = num;
+					if (fillBoard(grid)) return true;
+					grid[index] = 0; // Backtrack
+				}
+			}
+			return false;
+		}
+
+		function isValidMove(grid, index, num) {
+			const r = Math.floor(index / 9);
+			const c = index % 9;
+
+			for (let i = 0; i < 9; i++) {
+				// Check row
+				if (grid[r * 9 + i] === num) return false;
+				// Check col
+				if (grid[i * 9 + c] === num) return false;
+			}
+
+			// Check 3x3 box
+			const startR = Math.floor(r / 3) * 3;
+			const startC = Math.floor(c / 3) * 3;
+			for (let i = 0; i < 3; i++) {
+				for (let j = 0; j < 3; j++) {
+					if (grid[(startR + i) * 9 + (startC + j)] === num) return false;
+				}
+			}
+			return true;
 		}
 	</script>
 </body>
