@@ -284,6 +284,7 @@
 			board.innerHTML = '';
 			inputs = [];
 			for (let i = 0; i < 81; i++) {
+				let lastPressed = '';
 				let input = document.createElement('input');
 				input.type = 'text';
 				input.dataset.index = i;
@@ -330,7 +331,7 @@
 					}
 
 					if (!isNoteMode && /^[1-9]$/.test(e.key)) {
-						// Standard input helper handles the rest via 'input' event 
+						lastPressed = e.key;
 						return; // let default action happen, but cleanup in input listener
 					}
 
@@ -352,12 +353,8 @@
 						// If we just typed a number in normal mode, it should replace everything
 						if (input.classList.contains('note')) {
 							input.classList.remove('note');
-							// Take the last typed character if possible? 
-							// Logic is tricky in 'input' event because value is already mutated.
-							// Simply taking the last char is a good heuristic
-							const lastChar = val.slice(-1);
-							if (/^[1-9]$/.test(lastChar)) {
-								e.target.value = lastChar;
+							if (/^[1-9]$/.test(lastPressed)) {
+								e.target.value = lastPressed;
 							} else {
 								e.target.value = '';
 							}
